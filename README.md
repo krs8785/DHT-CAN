@@ -7,7 +7,9 @@ It is important to set up bootstrap server which will connect all the new server
 I have made small tweaking here. Instead of servers maintaining the IP address we are required to provide the bootstrapServer IP to it.
 
 Step 2
+
 You can start adding new server by running Peer.java on different machines.
+Enter the IP address of the routingServer
 
 Run a few of servers and perform the different distributed functionality. I have a few text files that you can upload by giving the correct path. 
 Inserting the file will show the route (along with the final destination) where the file is going to be stored.
