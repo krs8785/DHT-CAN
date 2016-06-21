@@ -1,3 +1,4 @@
+package peerServer;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -14,7 +15,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Scanner;
 
-import routingServer.routingServerImpl.BootStrapInterface;
+import peerServer.peerServerInterface.PeerInterface;
+import nodeInfo.NodeInfo;
+import routingServer.routingServerInterface.BootStrapInterface;
 
 /**
  * @author karan
@@ -57,6 +60,7 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 	 */
 	public static void main(String[] args) throws Exception {
 
+		@SuppressWarnings("resource")
 		Scanner sc = new Scanner(System.in);
 		int option;
 		int option2;

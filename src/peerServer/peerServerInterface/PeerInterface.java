@@ -1,9 +1,12 @@
+package peerServer.peerServerInterface;
 
 import java.io.File;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.HashMap;
+
+import nodeInfo.NodeInfo;
 
 
 /**

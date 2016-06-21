@@ -1,9 +1,6 @@
+package nodeInfo;
 import java.io.Serializable;
 
-/**
- * @author karan
- *
- */
 /**
  * @author karan
  *
@@ -14,11 +11,11 @@ public class NodeInfo implements Serializable {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	double lx;
-	double ly;
-	double ux;
-	double uy;
-	String peerIP = null;
+	public double lx;
+	public double ly;
+	public double ux;
+	public double uy;
+	public String peerIP = null;
 
 	/**
 	 * @param _lx
