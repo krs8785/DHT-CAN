@@ -11,17 +11,24 @@ import java.io.Serializable;
  *
  */
 public class NodeInfo implements Serializable {
-
-	/**
-	 * 
-	 */
+	
 	private static final long serialVersionUID = 1L;
 	
+	//The cooridnates of the server on the 2 dimensional space 
 	public double lx;
 	public double ly;
 	public double ux;
 	public double uy;
+	
+	//BootStrapServer Ip address
 	public String peerIP = null;
+	
+	/*
+	* @Constructor
+	*/
+	public NodeInfo(){
+		
+	}
 
 	/**
 	 * @param _lx
