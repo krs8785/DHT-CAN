@@ -2,6 +2,11 @@ package nodeInfo;
 import java.io.Serializable;
 
 /**
+ * The NodeInfo class is a simulation of a real world server. This class contains different information
+ * about the server. The server typically has an associated DNS domain name, and that this
+ * resolves to the IP address of one or more server bootstrap nodes. I have made small tweaking here.
+ * Instead of servers maintaining the IP address we are required to provide the bootstrapServer IP to it.
+ * 
  * @author karan
  *
  */
@@ -11,6 +16,7 @@ public class NodeInfo implements Serializable {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
+	
 	public double lx;
 	public double ly;
 	public double ux;
