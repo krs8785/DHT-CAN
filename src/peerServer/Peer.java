@@ -20,6 +20,13 @@ import nodeInfo.NodeInfo;
 import routingServer.routingServerInterface.BootStrapInterface;
 
 /**
+ * The Peer class is the main server class which consists of all the different functionality 
+ * that it can perform. The peer essentially is a server that when loaded up connects to the system
+ * via the bootstrap server. The server coantins its own information about the location ie coordinates,
+ * IP, etc. It always maintains a list of neighbouring server for the routing algorithm. 
+ * NOTE: In order to be distrubted in true sense it does not need to contain all the files or any metadata
+ *, it routes through the system to feth the file. 
+ * 
  * @author karan
  *
  */
