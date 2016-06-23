@@ -1,5 +1,20 @@
 Source - http://conferences.sigcomm.org/sigcomm/2001/p13-ratnasamy.pdf
 
+<b> Distributed Hash Table </b>
+
+A DHT is a distrbuted system that enables efficient lookup for a file very much similar to a hashtable (key,value) in a peer to peer network. The server within the system can retrieve value associated with the key. Content Addressable Network is peer to peer file sharing and content distributed system. The CAN is scalable, fault-tolerant and completely self-organizing,
+and int this project we will develop a system to demonstrate its scalability, robustness and low-latency properties through simulation as given in the above mentioned paper.
+
+<b> Technology </b>
+
+Java 
+
+<b> Architecture </b>
+<p align="center">
+  <img src="https://github.com/krs8785/DistributedHashTable_ContentAddressableNetwork/upload/master/src/com/CAN/testFiles/abc.png" width="350"/>
+</p>
+
+
 Step 1
 
 Run the routingServer ie BootStrapServer.java on your server. It will print the IP address of that machine.
