@@ -7,6 +7,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 
+import com.CAN.Constants.Constants;
 import com.CAN.routingServer.routingServerInterface.BootStrapInterface;
 
 /**
@@ -28,6 +29,7 @@ public class BootStrapServer extends UnicastRemoteObject implements
 	//This will get initialized when you run the server
 	//so peer server can use it to get connected
 	public String BootStrapIP = null;
+	
 
 	/**
 	 * @throws RemoteException
@@ -44,8 +46,8 @@ public class BootStrapServer extends UnicastRemoteObject implements
 		try {
 			InetAddress ip;
 			BootStrapServer obj = new BootStrapServer();
-			Registry reg = LocateRegistry.createRegistry(9898);
-			reg.rebind("BootStrap", obj);
+			Registry reg = LocateRegistry.createRegistry(Constants.portNumber);
+			reg.rebind(Constants.bindNameBootStrap, obj);
 			ip = InetAddress.getLocalHost();
 			System.out.println("\nThe Server IP is:" + ip);
 		} catch (Exception e) {

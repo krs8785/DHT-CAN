@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Scanner;
 
+import com.CAN.Constants.Constants;
 import com.CAN.NodeServer.NodeServerInterface.NodeInterface;
 import com.CAN.routingServer.routingServerInterface.BootStrapInterface;
 import com.CAN.serverInfo.ServerInformation;
@@ -33,18 +34,21 @@ import com.CAN.serverInfo.ServerInformation;
 public class NodeInstance extends UnicastRemoteObject implements Serializable,
 		NodeInterface {
 
+
+	private static final long serialVersionUID = 1L;
+	
 	/**
 	 * Information such as the NodeInfo which contains the
 	 * lx ly ux uy and IP. 
 	 * List of neighbors
 	 * List of files
 	 */
-	private static final long serialVersionUID = 1L;
 	static ServerInformation node = new ServerInformation();
 	static ArrayList<ServerInformation> neighbours;
 	static HashMap<File, byte[]> allFile = new HashMap<File, byte[]>();
 
 	/**
+	 * @Constructor
 	 * Set the IP
 	 * Initialize the list
 	 * @throws Exception
@@ -69,14 +73,14 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 
 		@SuppressWarnings("resource")
 		Scanner sc = new Scanner(System.in);
-		int option;
-		int option2;
+		int optionToJoin;
+		int optionToPerformFuntion;
 		boolean flag = true;
 		while (flag == true) {
 			System.out.println("1. Join");
 			System.out.println("2. Exit");
-			option = sc.nextInt();
-			switch (option) {
+			optionToJoin = sc.nextInt();
+			switch (optionToJoin) {
 			case 1:
 				boolean checkConnect = true;
 				try {
@@ -96,9 +100,9 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 						System.out.println("5. View Neibhors Info");
 						System.out.println("6. View File list Info");
 						System.out.println("7. Quit ");
-						option2 = sc.nextInt();
+						optionToPerformFuntion = sc.nextInt();
 
-						switch (option2) {
+						switch (optionToPerformFuntion) {
 						case 1:
 							insertFile();
 							break;
@@ -112,10 +116,10 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 							printPeer();
 							break;
 						case 5:
-							print2(neighbours, node.peerIP);
+							print2(neighbours, node.getPeerIP());
 							break;
 						case 6:
-							printFiles(allFile, node.peerIP);
+							printFiles(allFile, node.getPeerIP());
 							break;
 						case 7:
 							System.out.println("Quiting! Thank you.");
@@ -137,9 +141,356 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 			}
 		}
 	}
+	
+	/**
+	 * This method require bootstrap IP which will connect the peer into 
+	 * the network. Instead of randomly sending incoming server to any 
+	 * other server we always send it to the first. Once the zone of the 
+	 * server is decided it follows the routing algorithm that divides
+	 * the space/files.
+	 * 
+	 * @throws Exception
+	 */
+	public static void joinNetwork() throws Exception {
+
+		System.out.println("Enter BootStrap IP");
+		@SuppressWarnings("resource")
+		Scanner sc = new Scanner(System.in);
+		String newIP = sc.nextLine();
+		try {
+			NodeInstance newPeerIncoming = new NodeInstance();
+			Registry regi = LocateRegistry.getRegistry(newIP, 9898);
+			BootStrapInterface bsObj = (BootStrapInterface) regi
+					.lookup(Constants.bindNameBootStrap);
+			String bootStrapIP = bsObj.emitBootStrapIP();
+			if (bootStrapIP == null) {
+				node.setLowerX(0);
+				node.setLowerY(0);
+				node.setUpperX(10);
+				node.setUpperY(10);
+				bsObj.setNewBootStrapIP(node.getPeerIP());
+				Registry reg = LocateRegistry.createRegistry(9898);
+				reg.rebind(Constants.bindNamePeer, newPeerIncoming);
+			} else {
+				Registry regNew = LocateRegistry.getRegistry(bootStrapIP, 9898);
+				NodeInterface bsObjNew = (NodeInterface) regNew.lookup(Constants.bindNamePeer);
+				int randomX = (int) (1 + (Math.random() * ((9 - 1) + 1)));
+				int randomY = (int) (1 + (Math.random() * ((9 - 1) + 1)));
+				Registry regclient = LocateRegistry.createRegistry(9898);
+				regclient.rebind(Constants.bindNamePeer, newPeerIncoming);
+				bsObjNew.routing(randomX, randomY, node.getPeerIP());
+			}
+		} catch (Exception e) {
+			System.out.println("Exception err " + e.getMessage());
+			e.printStackTrace();
+		}
+	}	
 
 	/**
-	 * Works for 2-3 nodes only
+	 * The routing method checks where the new server belongs to until it 
+	 * finds it recursively. Once it finds the zone it calls the splitZone
+	 * which is responsible for the split.
+	 * 
+	 * @param randomX
+	 * @param randomY
+	 * @param peerIP
+	 */
+	@Override
+	public void routing(int randomX, int randomY, String peerIP) throws RemoteException {
+
+		// check if within the lower x and greater x
+		if (node.getUpperX() >= randomX && node.getLowerX() <= randomX) {
+			// check if within bounds of lower y and greater y
+			if (node.getUpperY() >= randomY && node.getLowerY() <= randomY) {
+				splitZone(peerIP);
+			}
+		} else {
+			ServerInformation nearestPeerFound = routeThrough(neighbours, randomX, randomY);
+			try {
+				Registry tempObj = LocateRegistry
+						.getRegistry(nearestPeerFound.getPeerIP(), Constants.portNumber);
+				NodeInterface peerInformationTemp = (NodeInterface) tempObj.lookup(Constants.bindNamePeer);
+				peerInformationTemp.routing(randomX, randomY, peerIP);
+			} catch (Exception e) {
+				System.out.println("Expcetion" + e);
+				e.printStackTrace();
+			}
+		}
+	}
+
+	/**
+	 * The routeThrough finds the nearest server where the files might be present.
+	 * The routing will exhaust the neigbhour list before looping through the 
+	 * nearest server. This will recursively happen until the zone/file is found	 * 
+	 * 
+	 * @param neigbhours
+	 * @param horizontalDistancX
+	 * @param horizontalDistancY
+	 * @return
+	 */
+	public static ServerInformation routeThrough(ArrayList<ServerInformation> neigbhours,
+			double horizontalDistancX, double horizontalDistancY) {
+		double centreX = (neighbours.get(0).getLowerX() + neighbours.get(0).getUpperX()) / 2;
+		double centreY = (neighbours.get(0).getLowerY() + neighbours.get(0).getUpperY()) / 2;
+		double shortDist = Math.sqrt(Math.pow(centreX - horizontalDistancX, 2)
+				+ Math.pow(centreY - horizontalDistancY, 2));
+		ServerInformation nearestServer = new ServerInformation();
+		for (int i = 0; i < neighbours.size(); i++) {
+			double centreX_temp = (neighbours.get(i).getLowerX() + neighbours.get(i).getUpperX()) / 2;
+			double centreY_temp = (neighbours.get(i).getLowerY() + neighbours.get(i).getUpperY()) / 2;
+			double dist = Math.sqrt(Math.pow(centreX_temp - horizontalDistancX, 2)
+					+ Math.pow(centreY_temp - horizontalDistancY, 2));
+			if (dist <= shortDist) {
+				shortDist = dist;
+				nearestServer = neighbours.get(i);
+			}
+		}
+		return nearestServer;
+	}
+	
+	/**
+	 * Spitzone depends on how the zone should be split, horizontal or vertical?
+	 * After the calculation based on the coordinate position the split is done 
+	 * and the files are assigned based to the server respecively. 
+	 * We also need to update the servers neighbour list now.
+	 * 
+	 * @param peerIP
+	 */
+	public void splitZone(String peerIP) {
+
+		ArrayList<ServerInformation> tempNeigbhor = new ArrayList<ServerInformation>();
+		tempNeigbhor = neighbours;
+		try {
+			// to split vertically
+			Registry toSplitObj = LocateRegistry.getRegistry(peerIP, Constants.portNumber);
+			NodeInterface toSplitPeer = (NodeInterface) toSplitObj
+					.lookup(Constants.bindNamePeer);
+			ServerInformation tempNode = toSplitPeer.getNodeInfo();
+			if (node.getUpperX() - node.getLowerX() >= node.getUpperY() - node.getLowerY()) {
+				// old peer stays on left
+				double tempX = node.getUpperX();
+				node.setUpperX( (node.getUpperX() + node.getLowerX()) / 2 );
+				tempNode.setLowerX(node.getUpperX());
+				tempNode.setLowerY(node.getLowerY());
+				tempNode.setUpperX(tempX);
+				tempNode.setUpperY(node.getUpperY());
+				double neighborX = node.getUpperX();
+				toSplitPeer.updateNode(tempNode);
+				updateFiles(toSplitPeer, tempNode);
+				changeNeighborsVertical(tempNeigbhor, tempNode, toSplitPeer, neighborX);
+			} else {// old peer stays below
+				double tempY = node.getUpperY();
+				node.setUpperY( (node.getUpperY() + node.getLowerY()) / 2 );
+				tempNode.setLowerX(node.getLowerX());
+				tempNode.setLowerY(node.getUpperY());
+				tempNode.setUpperX(node.getUpperX());
+				tempNode.setUpperY(tempY);
+				toSplitPeer.updateNode(tempNode);
+				double neigbhorY = node.getUpperY();
+				updateFiles(toSplitPeer, tempNode);
+				changeNeighborsHorizontal(tempNeigbhor, tempNode, toSplitPeer, neigbhorY);
+			}
+		} catch (Exception e) {
+			System.out.println("Exception " + e);
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Based on the orientation of the split server information is updated
+	 * 
+	 * @param neighbourList
+	 * @param nodeToUpdate
+	 * @param toSplitPeer
+	 * @param distance
+	 * 
+	 * @throws RemoteException
+	 * @throws NotBoundException
+	 */
+	public void changeNeighborsHorizontal(ArrayList<ServerInformation> neighbourList,
+			ServerInformation nodeToUpdate, NodeInterface toSplitPeer, double distance)
+			throws RemoteException, NotBoundException {
+
+		if (neighbourList.isEmpty() == true) {
+			ServerInformation addNodeTemp = new ServerInformation();
+			ServerInformation addNodeTemp2 = new ServerInformation();
+			addNodeTemp = nodeToUpdate;
+			neighbours.add(addNodeTemp);
+			addNodeTemp2 = node;
+			toSplitPeer.addNieghbor(addNodeTemp2);
+		} else {
+			ArrayList<ServerInformation> oldPeerList_down = new ArrayList<ServerInformation>();
+			ArrayList<ServerInformation> newPeerList_up = new ArrayList<ServerInformation>();
+			ServerInformation tmp1 = new ServerInformation();
+			ServerInformation tmp2 = new ServerInformation();
+			for (int i = 0; i < neighbourList.size(); i++) {
+				// when below
+				if (neighbourList.get(i).getUpperY() <= distance && neighbourList.get(i).getLowerY() <= distance) {
+					oldPeerList_down.add(neighbourList.get(i));
+					Registry neigbhorReg5 = LocateRegistry.getRegistry(
+							neighbourList.get(i).getPeerIP(), Constants.portNumber);
+					NodeInterface pObj5 = (NodeInterface) neigbhorReg5
+							.lookup(Constants.bindNamePeer);
+					ArrayList<ServerInformation> tempList = pObj5.getNeibhor();
+					ServerInformation old_temp = new ServerInformation();
+					for (int j = 0; j < tempList.size(); j++) {
+						if (tempList.get(j).getPeerIP().equals(node.getPeerIP())) {
+							pObj5.removeNiebhor(tempList.get(j));
+						}
+					}
+					old_temp = node;
+					pObj5.addNieghbor(old_temp);
+
+				}
+				// when above
+				else if (neighbourList.get(i).getUpperY() >= distance
+						&& neighbourList.get(i).getLowerY() >= distance) {
+					newPeerList_up.add(neighbourList.get(i));
+					Registry neigbhorReg6 = LocateRegistry.getRegistry(
+							neighbourList.get(i).getPeerIP(), Constants.portNumber);
+					NodeInterface pObj6 = (NodeInterface) neigbhorReg6
+							.lookup(Constants.bindNamePeer);
+					ArrayList<ServerInformation> tempList = pObj6.getNeibhor();
+					ServerInformation old_temp = new ServerInformation();
+					for (int j = 0; j < tempList.size(); j++) {
+						if (tempList.get(j).getPeerIP().equals(node.getPeerIP())) {
+							pObj6.removeNiebhor(tempList.get(j));
+						}
+					}
+					old_temp = node;
+					pObj6.addNieghbor(old_temp);
+				}
+				// when above/below
+				else {
+					oldPeerList_down.add(neighbourList.get(i));
+					newPeerList_up.add(neighbourList.get(i));
+					Registry neigbhorReg7 = LocateRegistry.getRegistry(
+							neighbourList.get(i).getPeerIP(), Constants.portNumber);
+					NodeInterface pObj7 = (NodeInterface) neigbhorReg7
+							.lookup(Constants.bindNamePeer);
+					ArrayList<ServerInformation> tempList = pObj7.getNeibhor();
+					ServerInformation old_temp = new ServerInformation();
+					ServerInformation new_temp = new ServerInformation();
+					for (int j = 0; j < tempList.size(); j++) {
+						if (tempList.get(j).getPeerIP().equals(node.getPeerIP())) {
+							pObj7.removeNiebhor(tempList.get(j));
+						}
+					}
+					old_temp = node;
+					new_temp = toSplitPeer.getNodeInfo();
+					pObj7.addNieghbor(old_temp);
+					pObj7.addNieghbor(new_temp);
+				}
+			}
+			neighbours = oldPeerList_down;
+			for (int l = 0; l < newPeerList_up.size(); l++) {
+				toSplitPeer.addNieghbor(newPeerList_up.get(l));
+			}
+			tmp1 = toSplitPeer.getNodeInfo();
+			neighbours.add(tmp1);
+			tmp2 = node;
+			toSplitPeer.addNieghbor(tmp2);
+		}
+
+	}
+
+	/**
+	 * Based on the orientation we update the servers
+	 * 
+	 * @param neighbourList
+	 * @param nodeToUpdate
+	 * @param toSplitPeer
+	 * @param distance
+	 * @throws RemoteException
+	 * @throws NotBoundException
+	 */
+	public void changeNeighborsVertical(ArrayList<ServerInformation> neighbourList,
+			ServerInformation nodeToUpdate, NodeInterface toSplitPeer, double distance)
+			throws RemoteException, NotBoundException {
+		if (neighbourList.isEmpty() == true) {
+			ServerInformation addNodeTemp = new ServerInformation();
+			ServerInformation addNodeTemp2 = new ServerInformation();
+			addNodeTemp = nodeToUpdate;
+			neighbours.add(addNodeTemp);
+			addNodeTemp2 = node;
+			toSplitPeer.addNieghbor(addNodeTemp2);
+		} else {
+			ArrayList<ServerInformation> oldPeerList_left = new ArrayList<ServerInformation>();
+			ArrayList<ServerInformation> newPeerList_right = new ArrayList<ServerInformation>();
+			ServerInformation tmp3 = new ServerInformation();
+			ServerInformation tmp4 = new ServerInformation();
+			for (int i = 0; i < neighbourList.size(); i++) {
+				// when left
+				if (neighbourList.get(i).getLowerX() <= distance && neighbourList.get(i).getUpperX() <= distance) {
+					oldPeerList_left.add(neighbourList.get(i));
+					Registry neigbhorReg1 = LocateRegistry.getRegistry(
+							neighbourList.get(i).getPeerIP(), Constants.portNumber);
+					NodeInterface pObj1 = (NodeInterface) neigbhorReg1
+							.lookup(Constants.bindNamePeer);
+					ArrayList<ServerInformation> tempList = pObj1.getNeibhor();
+					ServerInformation old_temp = new ServerInformation();
+					for (int j = 0; j < tempList.size(); j++) {
+						if (tempList.get(j).getPeerIP().equals(node.getPeerIP())) {
+							pObj1.removeNiebhor(tempList.get(j));
+						}
+					}
+					old_temp = node;
+					pObj1.addNieghbor(old_temp);
+				}
+				// when right
+				else if (neighbourList.get(i).getLowerX() >= distance
+						&& neighbourList.get(i).getUpperX() >= distance) {
+					newPeerList_right.add(neighbourList.get(i));
+					Registry neigbhorReg2 = LocateRegistry.getRegistry(
+							neighbourList.get(i).getPeerIP(), Constants.portNumber);
+					NodeInterface pObj2 = (NodeInterface) neigbhorReg2
+							.lookup(Constants.bindNamePeer);
+					ArrayList<ServerInformation> tempList = pObj2.getNeibhor();
+					ServerInformation old_temp = new ServerInformation();
+					for (int j = 0; j < tempList.size(); j++) {
+						if (tempList.get(j).getPeerIP().equals(node.getPeerIP())) {
+							pObj2.removeNiebhor(tempList.get(j));
+						}
+					}
+					old_temp = node;
+					pObj2.addNieghbor(old_temp);
+				}
+				// when above/below
+				else {
+					oldPeerList_left.add(neighbourList.get(i));
+					newPeerList_right.add(neighbourList.get(i));
+					Registry neigbhorReg3 = LocateRegistry.getRegistry(
+							neighbourList.get(i).getPeerIP(), Constants.portNumber);
+					NodeInterface pObj4 = (NodeInterface) neigbhorReg3
+							.lookup(Constants.bindNamePeer);
+					ArrayList<ServerInformation> tempList = pObj4.getNeibhor();
+					ServerInformation old_temp = new ServerInformation();
+					ServerInformation new_temp = new ServerInformation();
+					for (int j = 0; j < tempList.size(); j++) {
+						if (tempList.get(j).getPeerIP().equals(node.getPeerIP())) {
+							pObj4.removeNiebhor(tempList.get(j));
+						}
+					}
+					old_temp = node;
+					new_temp = toSplitPeer.getNodeInfo();
+					pObj4.addNieghbor(old_temp);
+					pObj4.addNieghbor(new_temp);
+				}
+			}
+			neighbours = oldPeerList_left;
+			for (int l = 0; l < newPeerList_right.size(); l++) {
+				toSplitPeer.addNieghbor(newPeerList_right.get(l));
+			}
+			tmp3 = toSplitPeer.getNodeInfo();
+			neighbours.add(tmp3);
+			tmp4 = node;
+			toSplitPeer.addNieghbor(tmp4);
+		}
+
+	}
+	
+	/**
+	 * 
 	 * 
 	 * @throws RemoteException
 	 * @throws Exception
@@ -313,258 +664,6 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 		}
 	}
 
-	/**
-	 * @throws Exception
-	 */
-	public static void joinNetwork() throws Exception {
-		// TODO Auto-generated method stub
-
-		System.out.println("Enter BootStrap Id");
-		Scanner sc = new Scanner(System.in);
-		String newIP = sc.nextLine();
-		try {
-			NodeInstance p = new NodeInstance();
-			Registry regi = LocateRegistry.getRegistry(newIP, 9898);
-			BootStrapInterface bsObj = (BootStrapInterface) regi
-					.lookup("BootStrap");
-			String bootStrapIP = bsObj.emitBootStrapIP();
-			if (bootStrapIP == null) {
-				node.setLowerX(0);
-				node.setLowerY(0);
-				node.setUpperX(10);
-				node.setUpperY(10);
-				bsObj.setNewBootStrapIP(node.peerIP);
-				Registry reg = LocateRegistry.createRegistry(9898);
-				reg.rebind("peer", p);
-			} else {
-				Registry regNew = LocateRegistry.getRegistry(bootStrapIP, 9898);
-				NodeInterface bsObjNew = (NodeInterface) regNew.lookup("peer");
-				int rx = (int) (1 + (Math.random() * ((9 - 1) + 1)));
-				int ry = (int) (1 + (Math.random() * ((9 - 1) + 1)));
-				Registry regclient = LocateRegistry.createRegistry(9898);
-				regclient.rebind("peer", p);
-				bsObjNew.routing(rx, ry, node.peerIP);
-			}
-		} catch (Exception e) {
-			System.out.println("Exception err " + e.getMessage());
-			e.printStackTrace();
-		}
-	}
-
-	/* (non-Javadoc)
-	 * @see PeerInterface#routing(int, int, java.lang.String)
-	 */
-	@Override
-	public void routing(int rx, int ry, String ip) throws RemoteException {
-
-		// check if within the lower x and greater x
-		if (node.getUpperX() >= rx && node.getLowerX() <= rx) {
-			// check if within bounds of lower y and greater y
-			if (node.getUpperY() >= ry && node.getLowerY() <= ry) {
-				splitZone(ip);
-			}
-		} else {
-			ServerInformation temp = routeThrough(neighbours, rx, ry);
-			try {
-				Registry tempObj = LocateRegistry
-						.getRegistry(temp.peerIP, 9898);
-				NodeInterface PI = (NodeInterface) tempObj.lookup("peer");
-				PI.routing(rx, ry, ip);
-			} catch (Exception e) {
-				System.out.println("Expcetion" + e);
-				e.printStackTrace();
-			}
-		}
-	}
-
-	/**
-	 * @param tempNeigbhor
-	 * @param tempNode
-	 * @param toSplitPeer
-	 * @param d
-	 * @throws RemoteException
-	 * @throws NotBoundException
-	 */
-	public void changeNeighborsH(ArrayList<ServerInformation> tempNeigbhor,
-			ServerInformation tempNode, NodeInterface toSplitPeer, double d)
-			throws RemoteException, NotBoundException {
-
-		if (tempNeigbhor.isEmpty() == true) {
-			ServerInformation addNodeTemp = new ServerInformation();
-			ServerInformation addNodeTemp2 = new ServerInformation();
-			addNodeTemp = tempNode;
-			neighbours.add(addNodeTemp);
-			addNodeTemp2 = node;
-			toSplitPeer.addNieghbor(addNodeTemp2);
-		} else {
-			ArrayList<ServerInformation> oldPeerList_down = new ArrayList<ServerInformation>();
-			ArrayList<ServerInformation> newPeerList_up = new ArrayList<ServerInformation>();
-			ServerInformation tmp1 = new ServerInformation();
-			ServerInformation tmp2 = new ServerInformation();
-			for (int i = 0; i < tempNeigbhor.size(); i++) {
-				// when below
-				if (tempNeigbhor.get(i).getUpperY() <= d && tempNeigbhor.get(i).getLowerY() <= d) {
-					oldPeerList_down.add(tempNeigbhor.get(i));
-					Registry neigbhorReg5 = LocateRegistry.getRegistry(
-							tempNeigbhor.get(i).peerIP, 9898);
-					NodeInterface pObj5 = (NodeInterface) neigbhorReg5
-							.lookup("peer");
-					ArrayList<ServerInformation> tempList = pObj5.getNeibhor();
-					ServerInformation old_temp = new ServerInformation();
-					for (int j = 0; j < tempList.size(); j++) {
-						if (tempList.get(j).peerIP.equals(node.peerIP)) {
-							pObj5.removeNiebhor(tempList.get(j));
-						}
-					}
-					old_temp = node;
-					pObj5.addNieghbor(old_temp);
-
-				}
-				// when above
-				else if (tempNeigbhor.get(i).getUpperY() >= d
-						&& tempNeigbhor.get(i).getLowerY() >= d) {
-					newPeerList_up.add(tempNeigbhor.get(i));
-					Registry neigbhorReg6 = LocateRegistry.getRegistry(
-							tempNeigbhor.get(i).peerIP, 9898);
-					NodeInterface pObj6 = (NodeInterface) neigbhorReg6
-							.lookup("peer");
-					ArrayList<ServerInformation> tempList = pObj6.getNeibhor();
-					ServerInformation old_temp = new ServerInformation();
-					for (int j = 0; j < tempList.size(); j++) {
-						if (tempList.get(j).peerIP.equals(node.peerIP)) {
-							pObj6.removeNiebhor(tempList.get(j));
-						}
-					}
-					old_temp = node;
-					pObj6.addNieghbor(old_temp);
-				}
-				// when above/below
-				else {
-					oldPeerList_down.add(tempNeigbhor.get(i));
-					newPeerList_up.add(tempNeigbhor.get(i));
-					Registry neigbhorReg7 = LocateRegistry.getRegistry(
-							tempNeigbhor.get(i).peerIP, 9898);
-					NodeInterface pObj7 = (NodeInterface) neigbhorReg7
-							.lookup("peer");
-					ArrayList<ServerInformation> tempList = pObj7.getNeibhor();
-					ServerInformation old_temp = new ServerInformation();
-					ServerInformation new_temp = new ServerInformation();
-					for (int j = 0; j < tempList.size(); j++) {
-						if (tempList.get(j).peerIP.equals(node.peerIP)) {
-							pObj7.removeNiebhor(tempList.get(j));
-						}
-					}
-					old_temp = node;
-					new_temp = toSplitPeer.getNodeInfo();
-					pObj7.addNieghbor(old_temp);
-					pObj7.addNieghbor(new_temp);
-				}
-			}
-			neighbours = oldPeerList_down;
-			for (int l = 0; l < newPeerList_up.size(); l++) {
-				toSplitPeer.addNieghbor(newPeerList_up.get(l));
-			}
-			tmp1 = toSplitPeer.getNodeInfo();
-			neighbours.add(tmp1);
-			tmp2 = node;
-			toSplitPeer.addNieghbor(tmp2);
-		}
-
-	}
-
-	// done
-	/**
-	 * @param tempNeigbhor
-	 * @param tempNode
-	 * @param toSplitPeer
-	 * @param d
-	 * @throws RemoteException
-	 * @throws NotBoundException
-	 */
-	public void changeNeighborsV(ArrayList<ServerInformation> tempNeigbhor,
-			ServerInformation tempNode, NodeInterface toSplitPeer, double d)
-			throws RemoteException, NotBoundException {
-		if (tempNeigbhor.isEmpty() == true) {
-			ServerInformation addNodeTemp = new ServerInformation();
-			ServerInformation addNodeTemp2 = new ServerInformation();
-			addNodeTemp = tempNode;
-			neighbours.add(addNodeTemp);
-			addNodeTemp2 = node;
-			toSplitPeer.addNieghbor(addNodeTemp2);
-		} else {
-			ArrayList<ServerInformation> oldPeerList_left = new ArrayList<ServerInformation>();
-			ArrayList<ServerInformation> newPeerList_right = new ArrayList<ServerInformation>();
-			ServerInformation tmp3 = new ServerInformation();
-			ServerInformation tmp4 = new ServerInformation();
-			for (int i = 0; i < tempNeigbhor.size(); i++) {
-				// when left
-				if (tempNeigbhor.get(i).getLowerX() <= d && tempNeigbhor.get(i).getUpperX() <= d) {
-					oldPeerList_left.add(tempNeigbhor.get(i));
-					Registry neigbhorReg1 = LocateRegistry.getRegistry(
-							tempNeigbhor.get(i).peerIP, 9898);
-					NodeInterface pObj1 = (NodeInterface) neigbhorReg1
-							.lookup("peer");
-					ArrayList<ServerInformation> tempList = pObj1.getNeibhor();
-					ServerInformation old_temp = new ServerInformation();
-					for (int j = 0; j < tempList.size(); j++) {
-						if (tempList.get(j).peerIP.equals(node.peerIP)) {
-							pObj1.removeNiebhor(tempList.get(j));
-						}
-					}
-					old_temp = node;
-					pObj1.addNieghbor(old_temp);
-				}
-				// when right
-				else if (tempNeigbhor.get(i).getLowerX() >= d
-						&& tempNeigbhor.get(i).getUpperX() >= d) {
-					newPeerList_right.add(tempNeigbhor.get(i));
-					Registry neigbhorReg2 = LocateRegistry.getRegistry(
-							tempNeigbhor.get(i).peerIP, 9898);
-					NodeInterface pObj2 = (NodeInterface) neigbhorReg2
-							.lookup("peer");
-					ArrayList<ServerInformation> tempList = pObj2.getNeibhor();
-					ServerInformation old_temp = new ServerInformation();
-					for (int j = 0; j < tempList.size(); j++) {
-						if (tempList.get(j).peerIP.equals(node.peerIP)) {
-							pObj2.removeNiebhor(tempList.get(j));
-						}
-					}
-					old_temp = node;
-					pObj2.addNieghbor(old_temp);
-				}
-				// when above/below
-				else {
-					oldPeerList_left.add(tempNeigbhor.get(i));
-					newPeerList_right.add(tempNeigbhor.get(i));
-					Registry neigbhorReg3 = LocateRegistry.getRegistry(
-							tempNeigbhor.get(i).peerIP, 9898);
-					NodeInterface pObj4 = (NodeInterface) neigbhorReg3
-							.lookup("peer");
-					ArrayList<ServerInformation> tempList = pObj4.getNeibhor();
-					ServerInformation old_temp = new ServerInformation();
-					ServerInformation new_temp = new ServerInformation();
-					for (int j = 0; j < tempList.size(); j++) {
-						if (tempList.get(j).peerIP.equals(node.peerIP)) {
-							pObj4.removeNiebhor(tempList.get(j));
-						}
-					}
-					old_temp = node;
-					new_temp = toSplitPeer.getNodeInfo();
-					pObj4.addNieghbor(old_temp);
-					pObj4.addNieghbor(new_temp);
-				}
-			}
-			neighbours = oldPeerList_left;
-			for (int l = 0; l < newPeerList_right.size(); l++) {
-				toSplitPeer.addNieghbor(newPeerList_right.get(l));
-			}
-			tmp3 = toSplitPeer.getNodeInfo();
-			neighbours.add(tmp3);
-			tmp4 = node;
-			toSplitPeer.addNieghbor(tmp4);
-		}
-
-	}
 
 	/* (non-Javadoc)
 	 * @see PeerInterface#addFile(java.io.File, byte[])
@@ -661,48 +760,7 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 		}
 	}
 
-	/**
-	 * @param peerIP
-	 */
-	public void splitZone(String peerIP) {
-
-		ArrayList<ServerInformation> tempNeigbhor = new ArrayList<ServerInformation>();
-		tempNeigbhor = neighbours;
-		try {
-			// to split vertically
-			Registry toSplitObj = LocateRegistry.getRegistry(peerIP, 9898);
-			NodeInterface toSplitPeer = (NodeInterface) toSplitObj
-					.lookup("peer");
-			ServerInformation tempNode = toSplitPeer.getNodeInfo();
-			if (node.getUpperX() - node.getLowerX() >= node.getUpperY() - node.getLowerY()) {
-				// old peer stays on left
-				double tempX = node.getUpperX();
-				node.setUpperX( (node.getUpperX() + node.getLowerX()) / 2 );
-				tempNode.setLowerX(node.getUpperX());
-				tempNode.setLowerY(node.getLowerY());
-				tempNode.setUpperX(tempX);
-				tempNode.setUpperY(node.getUpperY());
-				double neighborX = node.getUpperX();
-				toSplitPeer.updateNode(tempNode);
-				updateFiles(toSplitPeer, tempNode);
-				changeNeighborsV(tempNeigbhor, tempNode, toSplitPeer, neighborX);
-			} else {// old peer stays below
-				double tempY = node.getUpperY();
-				node.setUpperY( (node.getUpperY() + node.getLowerY()) / 2 );
-				tempNode.setLowerX(node.getLowerX());
-				tempNode.setLowerY(node.getUpperY());
-				tempNode.setUpperX(node.getUpperX());
-				tempNode.setUpperY(tempY);
-				toSplitPeer.updateNode(tempNode);
-				double neigbhorY = node.getUpperY();
-				updateFiles(toSplitPeer, tempNode);
-				changeNeighborsH(tempNeigbhor, tempNode, toSplitPeer, neigbhorY);
-			}
-		} catch (Exception e) {
-			System.out.println("Exception " + e);
-			e.printStackTrace();
-		}
-	}
+	
 
 	/* (non-Javadoc)
 	 * @see PeerInterface#getNodeInfo()
@@ -818,13 +876,13 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 			ServerInformation temp = routeThrough(neighbours, hash_x, hash_y);
 			try {
 				Registry tempObj_insert = LocateRegistry.getRegistry(
-						temp.peerIP, 9898);
+						temp.getPeerIP(), Constants.portNumber);
 				NodeInterface peerInsert = (NodeInterface) tempObj_insert
-						.lookup("peer");
+						.lookup(Constants.bindNamePeer);
 				System.out.println("Route from Peer to Destination: \n"
-						+ node.peerIP + "\n" + temp.peerIP);
+						+ node.getPeerIP() + "\n" + temp.getPeerIP());
 				peerInsert.insertRoute(hash_x, hash_y, file, buffer,
-						node.peerIP);
+						node.getPeerIP());
 			} catch (Exception e) {
 				System.out.println("Expcetion" + e);
 				e.printStackTrace();
@@ -935,33 +993,7 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 				e.printStackTrace();
 			}
 		}
-	}
-
-	/**
-	 * @param neigbhours
-	 * @param hx
-	 * @param hy
-	 * @return
-	 */
-	public static ServerInformation routeThrough(ArrayList<ServerInformation> neigbhours,
-			double hx, double hy) {
-		double centreX = (neighbours.get(0).getLowerX() + neighbours.get(0).getUpperX()) / 2;
-		double centreY = (neighbours.get(0).getLowerY() + neighbours.get(0).getUpperY()) / 2;
-		double shortDist = Math.sqrt(Math.pow(centreX - hx, 2)
-				+ Math.pow(centreY - hy, 2));
-		ServerInformation temp = new ServerInformation();
-		for (int i = 0; i < neighbours.size(); i++) {
-			double centreX_temp = (neighbours.get(i).getLowerX() + neighbours.get(i).getUpperX()) / 2;
-			double centreY_temp = (neighbours.get(i).getLowerY() + neighbours.get(i).getUpperY()) / 2;
-			double dist = Math.sqrt(Math.pow(centreX_temp - hx, 2)
-					+ Math.pow(centreY_temp - hy, 2));
-			if (dist <= shortDist) {
-				shortDist = dist;
-				temp = neighbours.get(i);
-			}
-		}
-		return temp;
-	}
+	}	
 
 	/**
 	 * @param neigbhours

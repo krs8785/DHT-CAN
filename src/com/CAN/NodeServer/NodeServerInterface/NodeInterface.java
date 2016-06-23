@@ -10,8 +10,7 @@ import com.CAN.serverInfo.ServerInformation;
 
 
 /**
- * @author karan
- *
+ * @author karan *
  */
 public interface NodeInterface extends Remote {
 
