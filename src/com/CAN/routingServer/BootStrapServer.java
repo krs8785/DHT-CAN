@@ -10,16 +10,23 @@ import java.rmi.server.UnicastRemoteObject;
 import com.CAN.routingServer.routingServerInterface.BootStrapInterface;
 
 /**
+ *  Bootstrap server which is the entry point for all the server. CAN has 
+ *  an associated DNS domain name, and that this resolves to the IP address of
+ *  one or more CAN bootstrap server. To join a CAN, a new server looks up the 
+ *  CAN domain name in DNS to retrieve a bootstrap node’s IP address. The bootstrap 
+ *  server then supplies the IP addresses of several randomly chosen server 
+ *  currently in the system
+ * 
  * @author karan
  *
  */
 public class BootStrapServer extends UnicastRemoteObject implements
 		BootStrapInterface, Serializable {
 
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
+	
+	//This will get initialized when you run the server
+	//so peer server can use it to get connected
 	public String BootStrapIP = null;
 
 	/**

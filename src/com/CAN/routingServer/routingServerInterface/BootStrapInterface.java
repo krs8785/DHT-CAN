@@ -2,6 +2,9 @@ package com.CAN.routingServer.routingServerInterface;
 import java.rmi.*;
 
 /**
+ * The bootstrap interface essentially contains the methods require
+ * by the bootstrap to connect the server
+ * 
  * @author karan
  *
  */
