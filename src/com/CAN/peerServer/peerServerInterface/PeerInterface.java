@@ -1,4 +1,4 @@
-package peerServer.peerServerInterface;
+package com.CAN.peerServer.peerServerInterface;
 
 import java.io.File;
 import java.rmi.Remote;
@@ -6,7 +6,7 @@ import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import nodeInfo.NodeInfo;
+import com.CAN.nodeInfo.NodeInfo;
 
 
 /**

@@ -1,4 +1,4 @@
-package peerServer;
+package com.CAN.peerServer;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -15,11 +15,18 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Scanner;
 
-import peerServer.peerServerInterface.PeerInterface;
-import nodeInfo.NodeInfo;
-import routingServer.routingServerInterface.BootStrapInterface;
+import com.CAN.peerServer.peerServerInterface.PeerInterface;
+import com.CAN.nodeInfo.NodeInfo;
+import com.CAN.routingServer.routingServerInterface.BootStrapInterface;
 
 /**
+ * The Peer class is the main server class which consists of all the different functionality 
+ * that it can perform. The peer essentially is a server that when loaded up connects to the system
+ * via the bootstrap server. The server coantins its own information about the location ie coordinates,
+ * IP, etc. It always maintains a list of neighbouring server for the routing algorithm. 
+ * NOTE: In order to be distrubted in true sense it does not need to contain all the files or any metadata
+ *, it routes through the system to feth the file. 
+ * 
  * @author karan
  *
  */
@@ -45,7 +52,7 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 	public Peer() throws Exception {
 
 		try {
-			node.setIP(InetAddress.getLocalHost().getHostAddress());
+			node.setPeerIP(InetAddress.getLocalHost().getHostAddress());
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
@@ -162,23 +169,23 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 			System.exit(0);
 		} else {
 			if (neighbours.size() == 2) {
-				if (node.ux - node.lx >= node.uy - node.ly) {
+				if (node.getUpperX() - node.getLowerX() >= node.getUpperY() - node.getLowerY()) {
 					// square
 					// System.out.println("SQUARE");
-					double centreX = node.ux + node.lx / 2;
-					double centreY = node.uy + node.ly / 2;
+					double centreX = node.getUpperX() + node.getLowerX() / 2;
+					double centreY = node.getUpperY() + node.getLowerY() / 2;
 					NodeInfo t = routeThrough1(neighbours, centreX, centreY);
 					Registry leaveObj1 = LocateRegistry.getRegistry(t.peerIP,
 							9898);
 					PeerInterface leavePI1 = (PeerInterface) leaveObj1
 							.lookup("peer");
 					NodeInfo tempOr = leavePI1.getNodeInfo();
-					if (node.ly > tempOr.ly) {
-						leavePI1.setUY(node.uy);
-						leavePI1.setUX(node.ux);
+					if (node.getLowerY() > tempOr.getLowerY()) {
+						leavePI1.setUY(node.getUpperY());
+						leavePI1.setUX(node.getUpperX());
 					} else {
-						leavePI1.setLX(tempOr.lx);
-						leavePI1.setLY(tempOr.ly);
+						leavePI1.setLX(tempOr.getLowerX());
+						leavePI1.setLY(tempOr.getLowerY());
 					}
 					// files
 					tempOr = leavePI1.getNodeInfo();
@@ -226,14 +233,14 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 					PeerInterface p2 = (PeerInterface) o2.lookup("peer");
 					NodeInfo x1 = p1.getNodeInfo();
 					NodeInfo x2 = p2.getNodeInfo();
-					if (node.uy == x1.uy) {
+					if (node.getUpperY() == x1.getUpperY()) {
 						// up
-						p2.setUX(x1.ux);
-						p2.setUY(x1.uy);
-						p1.setLX(node.lx);
-						p1.setLY(node.ly);
-						p1.setUY(node.uy);
-						p1.setUX(node.ux);
+						p2.setUX(x1.getUpperX());
+						p2.setUY(x1.getUpperY());
+						p1.setLX(node.getLowerX());
+						p1.setLY(node.getLowerY());
+						p1.setUY(node.getUpperY());
+						p1.setUX(node.getUpperX());
 						
 						HashMap<File,byte[]> f = p1.getFileList();
 						Iterator it = f.entrySet().iterator();
@@ -246,12 +253,12 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 
 					} else {
 						// down
-						p1.setUX(x2.ux);
-						p1.setUY(x2.uy);
-						p2.setLX(node.lx);
-						p2.setLY(node.ly);
-						p2.setUY(node.uy);
-						p2.setUX(node.ux);
+						p1.setUX(x2.getUpperX());
+						p1.setUY(x2.getUpperY());
+						p2.setLX(node.getLowerX());
+						p2.setLY(node.getLowerY());
+						p2.setUY(node.getUpperY());
+						p2.setUX(node.getUpperX());
 						
 						HashMap<File,byte[]> f = p2.getFileList();
 						Iterator it = f.entrySet().iterator();
@@ -294,9 +301,9 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 			PeerInterface printPI = (PeerInterface) printObj.lookup("peer");
 			NodeInfo t = printPI.getNodeInfo();
 			System.out
-					.println("\nPeer IP:" + t.peerIP + " LowerX:" + t.lx
-							+ " LowerY:" + t.ly + " UpperX:" + t.ux
-							+ " UpperY:" + t.uy);
+					.println("\nPeer IP:" + t.peerIP + " LowerX:" + t.getLowerX()
+							+ " LowerY:" + t.getLowerY() + " UpperX:" + t.getUpperX()
+							+ " UpperY:" + t.getUpperY());
 			print2(printPI.getNeibhor(), t.peerIP);
 			printFiles(printPI.getFileList(), t.peerIP);
 
@@ -322,10 +329,10 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 					.lookup("BootStrap");
 			String bootStrapIP = bsObj.emitBootStrapIP();
 			if (bootStrapIP == null) {
-				node.lx = 0;
-				node.ly = 0;
-				node.ux = 10;
-				node.uy = 10;
+				node.setLowerX(0);
+				node.setLowerY(0);
+				node.setUpperX(10);
+				node.setUpperY(10);
 				bsObj.setNewBootStrapIP(node.peerIP);
 				Registry reg = LocateRegistry.createRegistry(9898);
 				reg.rebind("peer", p);
@@ -351,9 +358,9 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 	public void routing(int rx, int ry, String ip) throws RemoteException {
 
 		// check if within the lower x and greater x
-		if (node.ux >= rx && node.lx <= rx) {
+		if (node.getUpperX() >= rx && node.getLowerX() <= rx) {
 			// check if within bounds of lower y and greater y
-			if (node.uy >= ry && node.ly <= ry) {
+			if (node.getUpperY() >= ry && node.getLowerY() <= ry) {
 				splitZone(ip);
 			}
 		} else {
@@ -396,7 +403,7 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 			NodeInfo tmp2 = new NodeInfo();
 			for (int i = 0; i < tempNeigbhor.size(); i++) {
 				// when below
-				if (tempNeigbhor.get(i).uy <= d && tempNeigbhor.get(i).ly <= d) {
+				if (tempNeigbhor.get(i).getUpperY() <= d && tempNeigbhor.get(i).getLowerY() <= d) {
 					oldPeerList_down.add(tempNeigbhor.get(i));
 					Registry neigbhorReg5 = LocateRegistry.getRegistry(
 							tempNeigbhor.get(i).peerIP, 9898);
@@ -414,8 +421,8 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 
 				}
 				// when above
-				else if (tempNeigbhor.get(i).uy >= d
-						&& tempNeigbhor.get(i).ly >= d) {
+				else if (tempNeigbhor.get(i).getUpperY() >= d
+						&& tempNeigbhor.get(i).getLowerY() >= d) {
 					newPeerList_up.add(tempNeigbhor.get(i));
 					Registry neigbhorReg6 = LocateRegistry.getRegistry(
 							tempNeigbhor.get(i).peerIP, 9898);
@@ -491,7 +498,7 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 			NodeInfo tmp4 = new NodeInfo();
 			for (int i = 0; i < tempNeigbhor.size(); i++) {
 				// when left
-				if (tempNeigbhor.get(i).lx <= d && tempNeigbhor.get(i).ux <= d) {
+				if (tempNeigbhor.get(i).getLowerX() <= d && tempNeigbhor.get(i).getUpperX() <= d) {
 					oldPeerList_left.add(tempNeigbhor.get(i));
 					Registry neigbhorReg1 = LocateRegistry.getRegistry(
 							tempNeigbhor.get(i).peerIP, 9898);
@@ -508,8 +515,8 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 					pObj1.addNieghbor(old_temp);
 				}
 				// when right
-				else if (tempNeigbhor.get(i).lx >= d
-						&& tempNeigbhor.get(i).ux >= d) {
+				else if (tempNeigbhor.get(i).getLowerX() >= d
+						&& tempNeigbhor.get(i).getUpperX() >= d) {
 					newPeerList_right.add(tempNeigbhor.get(i));
 					Registry neigbhorReg2 = LocateRegistry.getRegistry(
 							tempNeigbhor.get(i).peerIP, 9898);
@@ -626,8 +633,8 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 		System.out.println("Peer IP \t lx \t ly \t ux \t uy");
 		for (int i = 0; i < list.size(); i++) {
 			NodeInfo tmp = list.get(i);
-			System.out.println(tmp.peerIP + "\t" + tmp.lx + "\t" + tmp.ly
-					+ "\t" + tmp.ux + "\t" + tmp.uy);
+			System.out.println(tmp.peerIP + "\t" + tmp.getLowerX() + "\t" + tmp.getLowerY()
+					+ "\t" + tmp.getUpperX() + "\t" + tmp.getUpperY());
 		}
 		System.out.println();
 	}
@@ -646,8 +653,8 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 			String temps = temps1.getName();
 			double hx = getHashX(temps);
 			double hy = getHashY(temps);
-			if (tempNode.lx <= hx && tempNode.ux >= hx && tempNode.ly <= hy
-					&& tempNode.uy >= hy) {
+			if (tempNode.getLowerX() <= hx && tempNode.getUpperX() >= hx && tempNode.getLowerY() <= hy
+					&& tempNode.getUpperY() >= hy) {
 				it.remove();
 				toSplitPeer.addFile(temps1, (byte[]) pair.getValue());
 			}
@@ -667,27 +674,27 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 			PeerInterface toSplitPeer = (PeerInterface) toSplitObj
 					.lookup("peer");
 			NodeInfo tempNode = toSplitPeer.getNodeInfo();
-			if (node.ux - node.lx >= node.uy - node.ly) {
+			if (node.getUpperX() - node.getLowerX() >= node.getUpperY() - node.getLowerY()) {
 				// old peer stays on left
-				double tempX = node.ux;
-				node.ux = (node.ux + node.lx) / 2;
-				tempNode.setLowerX(node.ux);
-				tempNode.setLowerY(node.ly);
+				double tempX = node.getUpperX();
+				node.setUpperX( (node.getUpperX() + node.getLowerX()) / 2 );
+				tempNode.setLowerX(node.getUpperX());
+				tempNode.setLowerY(node.getLowerY());
 				tempNode.setUpperX(tempX);
-				tempNode.setUpperY(node.uy);
-				double neighborX = node.ux;
+				tempNode.setUpperY(node.getUpperY());
+				double neighborX = node.getUpperX();
 				toSplitPeer.updateNode(tempNode);
 				updateFiles(toSplitPeer, tempNode);
 				changeNeighborsV(tempNeigbhor, tempNode, toSplitPeer, neighborX);
 			} else {// old peer stays below
-				double tempY = node.uy;
-				node.uy = (node.uy + node.ly) / 2;
-				tempNode.setLowerX(node.lx);
-				tempNode.setLowerY(node.uy);
-				tempNode.setUpperX(node.ux);
+				double tempY = node.getUpperY();
+				node.setUpperY( (node.getUpperY() + node.getLowerY()) / 2 );
+				tempNode.setLowerX(node.getLowerX());
+				tempNode.setLowerY(node.getUpperY());
+				tempNode.setUpperX(node.getUpperX());
 				tempNode.setUpperY(tempY);
 				toSplitPeer.updateNode(tempNode);
-				double neigbhorY = node.uy;
+				double neigbhorY = node.getUpperY();
 				updateFiles(toSplitPeer, tempNode);
 				changeNeighborsH(tempNeigbhor, tempNode, toSplitPeer, neigbhorY);
 			}
@@ -755,28 +762,28 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 	 * @see PeerInterface#setLX(double)
 	 */
 	public void setLX(double _lx) {
-		node.lx = _lx;
+		node.setLowerX(_lx);
 	}
 
 	/* (non-Javadoc)
 	 * @see PeerInterface#setUX(double)
 	 */
 	public void setUX(double _ux) {
-		node.ux = _ux;
+		node.setUpperX(_ux);
 	}
 
 	/* (non-Javadoc)
 	 * @see PeerInterface#setLY(double)
 	 */
 	public void setLY(double _ly) {
-		node.ly = _ly;
+		node.setLowerY(_ly);
 	}
 
 	/* (non-Javadoc)
 	 * @see PeerInterface#setUY(double)
 	 */
 	public void setUY(double _uy) {
-		node.uy = _uy;
+		node.setUpperY(_uy);
 	}
 
 	/* (non-Javadoc)
@@ -803,8 +810,8 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 		double hash_x = getHashX(file);
 		double hash_y = getHashY(file);
 
-		if (node.lx <= hash_x && node.ux >= hash_x && node.ly <= hash_y
-				&& node.uy >= hash_y) {
+		if (node.getLowerX() <= hash_x && node.getUpperX() >= hash_x && node.getLowerY() <= hash_y
+				&& node.getUpperY() >= hash_y) {
 			System.out.println("\nFile inserted in SAME Peer: " + node.peerIP);
 			allFile.put(file, buffer);
 		} else {
@@ -837,8 +844,8 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 		double hash_x = getHashX(searchFile);
 		double hash_y = getHashY(searchFile);
 
-		if (node.lx <= hash_x && node.ux >= hash_x && node.ly <= hash_y
-				&& node.uy >= hash_y) {
+		if (node.getLowerX() <= hash_x && node.getUpperX() >= hash_x && node.getLowerY() <= hash_y
+				&& node.getUpperY() >= hash_y) {
 			if (allFile.containsKey(fileSearch)) {
 				System.out.println("\nFile found in SAME Peer: " + node.peerIP);
 				System.out.println("File " + searchFile + " found.");
@@ -870,7 +877,7 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 	public void insertRoute(double hx, double hy, File fileName, byte buffer[],
 			String ip) throws RemoteException {
 
-		if (node.lx <= hx && node.ux >= hx && node.ly <= hy && node.uy >= hy) {
+		if (node.getLowerX() <= hx && node.getUpperX() >= hx && node.getLowerY() <= hy && node.getUpperY() >= hy) {
 			allFile.put(fileName, buffer);
 			// allFiles.add(fileName);
 		} else {
@@ -897,7 +904,7 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 	public void searchRoute(double hx, double hy, File searchName, String ip)
 			throws RemoteException {
 
-		if (node.lx <= hx && node.ux >= hx && node.ly <= hy && node.uy >= hy) {
+		if (node.getLowerX() <= hx && node.getUpperX() >= hx && node.getLowerY() <= hy && node.getUpperY() >= hy) {
 			try {
 				Registry finalReg = LocateRegistry.getRegistry(ip, 9898);
 				PeerInterface finalPI = (PeerInterface) finalReg.lookup("peer");
@@ -938,14 +945,14 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 	 */
 	public static NodeInfo routeThrough(ArrayList<NodeInfo> neigbhours,
 			double hx, double hy) {
-		double centreX = (neighbours.get(0).lx + neighbours.get(0).ux) / 2;
-		double centreY = (neighbours.get(0).ly + neighbours.get(0).uy) / 2;
+		double centreX = (neighbours.get(0).getLowerX() + neighbours.get(0).getUpperX()) / 2;
+		double centreY = (neighbours.get(0).getLowerY() + neighbours.get(0).getUpperY()) / 2;
 		double shortDist = Math.sqrt(Math.pow(centreX - hx, 2)
 				+ Math.pow(centreY - hy, 2));
 		NodeInfo temp = new NodeInfo();
 		for (int i = 0; i < neighbours.size(); i++) {
-			double centreX_temp = (neighbours.get(i).lx + neighbours.get(i).ux) / 2;
-			double centreY_temp = (neighbours.get(i).ly + neighbours.get(i).uy) / 2;
+			double centreX_temp = (neighbours.get(i).getLowerX() + neighbours.get(i).getUpperX()) / 2;
+			double centreY_temp = (neighbours.get(i).getLowerY() + neighbours.get(i).getUpperY()) / 2;
 			double dist = Math.sqrt(Math.pow(centreX_temp - hx, 2)
 					+ Math.pow(centreY_temp - hy, 2));
 			if (dist <= shortDist) {
@@ -964,16 +971,16 @@ public class Peer extends UnicastRemoteObject implements Serializable,
 	 */
 	public static NodeInfo routeThrough1(ArrayList<NodeInfo> neigbhours,
 			double hx, double hy) {
-		double centreX = (neighbours.get(0).lx + neighbours.get(0).ux) / 2;
-		double centreY = (neighbours.get(0).ly + neighbours.get(0).uy) / 2;
+		double centreX = (neighbours.get(0).getLowerX() + neighbours.get(0).getUpperX()) / 2;
+		double centreY = (neighbours.get(0).getLowerY() + neighbours.get(0).getUpperY()) / 2;
 		double shortDist = Math.sqrt(Math.pow(centreX - hx, 2)
 				+ Math.pow(centreY - hy, 2));
 		NodeInfo temp = new NodeInfo();
 		for (int i = 0; i < neighbours.size(); i++) {
-			if (neigbhours.get(i).ly <= node.ly
-					|| neigbhours.get(i).uy >= node.uy) {
-				double centreX_temp = (neighbours.get(i).lx + neighbours.get(i).ux) / 2;
-				double centreY_temp = (neighbours.get(i).ly + neighbours.get(i).uy) / 2;
+			if (neigbhours.get(i).getLowerY() <= node.getLowerY()
+					|| neigbhours.get(i).getUpperY() >= node.getUpperY()) {
+				double centreX_temp = (neighbours.get(i).getLowerX() + neighbours.get(i).getUpperX()) / 2;
+				double centreY_temp = (neighbours.get(i).getLowerY() + neighbours.get(i).getUpperY()) / 2;
 				double dist = Math.sqrt(Math.pow(centreX_temp - hx, 2)
 						+ Math.pow(centreY_temp - hy, 2));
 				if (dist <= shortDist) {

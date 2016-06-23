@@ -1,4 +1,4 @@
-package routingServer;
+package com.CAN.routingServer;
 
 import java.io.Serializable;
 import java.net.InetAddress;
@@ -7,7 +7,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 
-import routingServer.routingServerInterface.BootStrapInterface;
+import com.CAN.routingServer.routingServerInterface.BootStrapInterface;
 
 /**
  * @author karan

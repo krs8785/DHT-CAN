@@ -1,4 +1,4 @@
-package routingServer.routingServerInterface;
+package com.CAN.routingServer.routingServerInterface;
 import java.rmi.*;
 
 /**
