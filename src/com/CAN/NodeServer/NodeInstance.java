@@ -61,7 +61,7 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 			e.printStackTrace();
 		}
 		neighbours = new ArrayList<ServerInformation>();
-		System.out.println("*Ip of this peer: " + node.peerIP + "*");
+		System.out.println("*Ip of this peer: " + node.getPeerIP() + "*");
 	}
 
 	/**
@@ -490,7 +490,186 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 	}
 	
 	/**
+	 * Insert a file in the server
+	 * @throws IOException
+	 */
+	public static void insertFile() throws IOException {
+
+		System.out.println("Enter the file name");
+		@SuppressWarnings("resource")
+		Scanner sc1 = new Scanner(System.in);
+		String fileName = sc1.nextLine();
+		File file = new File(fileName);
+		byte buffer[] = new byte[(int) file.length()];
+		FileInputStream in = new FileInputStream(file);
+		in.read(buffer);
+		in.close();
+		double hash_x = getHashX(file);
+		double hash_y = getHashY(file);
+
+		if (node.getLowerX() <= hash_x && node.getUpperX() >= hash_x && node.getLowerY() <= hash_y
+				&& node.getUpperY() >= hash_y) {
+			System.out.println("\nFile inserted in SAME Peer: " + node.getPeerIP());
+			allFile.put(file, buffer);
+		} else {
+			ServerInformation temp = routeThrough(neighbours, hash_x, hash_y);
+			try {
+				Registry tempObj_insert = LocateRegistry.getRegistry(
+						temp.getPeerIP(), Constants.portNumber);
+				NodeInterface peerInsert = (NodeInterface) tempObj_insert
+						.lookup(Constants.bindNamePeer);
+				System.out.println("Route from Peer to Destination: \n"
+						+ node.getPeerIP() + "\n" + temp.getPeerIP());
+				peerInsert.insertRoute(hash_x, hash_y, file, buffer,
+						node.getPeerIP());
+			} catch (Exception e) {
+				System.out.println("Expcetion" + e);
+				e.printStackTrace();
+			}
+		}
+
+	}
+
+	/**
+	 * Search for a file in the server. If not found we route through the nearest
+	 * server and so on.
 	 * 
+	 */
+	private static void searchFile() {
+		@SuppressWarnings("resource")
+		Scanner sc2 = new Scanner(System.in);
+		System.out.println("Enter File to search:");
+		String searchFile = sc2.nextLine();
+		File fileSearch = new File(searchFile);
+		double hash_x = getHashX(searchFile);
+		double hash_y = getHashY(searchFile);
+
+		if (node.getLowerX() <= hash_x && node.getUpperX() >= hash_x && node.getLowerY() <= hash_y
+				&& node.getUpperY() >= hash_y) {
+			if (allFile.containsKey(fileSearch)) {
+				System.out.println("\nFile found in SAME Peer: " + node.getPeerIP());
+				System.out.println("File " + searchFile + " found.");
+			} else {
+				System.out.println("\nFile not found");
+			}
+		} else {
+			ServerInformation temp = routeThrough(neighbours, hash_x, hash_y);
+			try {
+				Registry tempObj_search = LocateRegistry.getRegistry(
+						temp.getPeerIP(), Constants.portNumber);
+				NodeInterface peerSearch = (NodeInterface) tempObj_search
+						.lookup(Constants.bindNamePeer);
+				System.out.println("Route from Peer to Destination: \n"
+						+ node.getPeerIP() + "\n" + temp.getPeerIP());
+				peerSearch.searchRoute(hash_x, hash_y, fileSearch, node.getPeerIP());
+			} catch (Exception e) {
+				System.out.println("Expcetion" + e);
+				e.printStackTrace();
+			}
+		}
+
+	}
+
+	/* (non-Javadoc)
+	 * @see PeerInterface#insertRoute(double, double, java.io.File, byte[], java.lang.String)
+	 */
+	@Override
+	public void insertRoute(double hx, double hy, File fileName, byte buffer[],
+			String ip) throws RemoteException {
+
+		if (node.getLowerX() <= hx && node.getUpperX() >= hx && node.getLowerY() <= hy && node.getUpperY() >= hy) {
+			allFile.put(fileName, buffer);
+			// allFiles.add(fileName);
+		} else {
+			ServerInformation temp = routeThrough(neighbours, hx, hy);
+			try {
+				Registry tempObj_insertRoute = LocateRegistry.getRegistry(
+						temp.getPeerIP(), Constants.portNumber);
+				NodeInterface peerInsertRoute = (NodeInterface) tempObj_insertRoute
+						.lookup(Constants.bindNamePeer);
+				peerInsertRoute.printRouteSingle(temp.getPeerIP());
+				peerInsertRoute.insertRoute(hx, hy, fileName, buffer, ip);
+			} catch (Exception e) {
+				System.out.println("Expcetion" + e);
+				e.printStackTrace();
+			}
+		}
+
+	}
+
+	/* (non-Javadoc)
+	 * @see PeerInterface#searchRoute(double, double, java.io.File, java.lang.String)
+	 */
+	@Override
+	public void searchRoute(double hx, double hy, File searchName, String ip)
+			throws RemoteException {
+
+		if (node.getLowerX() <= hx && node.getUpperX() >= hx && node.getLowerY() <= hy && node.getUpperY() >= hy) {
+			try {
+				Registry finalReg = LocateRegistry.getRegistry(ip, Constants.portNumber);
+				NodeInterface finalPI = (NodeInterface) finalReg.lookup(Constants.bindNamePeer);
+				if (allFile.containsKey(searchName)) {
+					finalPI.printRoute(searchName, ip);
+				} else {
+					finalPI.printRouteNot(searchName, ip);
+				}
+			} catch (NotBoundException e) {
+				e.printStackTrace();
+			}
+
+		} else {
+			ServerInformation temp = routeThrough(neighbours, hx, hy);
+			try {
+				Registry tempObj_searchRoute = LocateRegistry.getRegistry(
+						temp.getPeerIP(), Constants.portNumber);
+				NodeInterface peerSearchRoute = (NodeInterface) tempObj_searchRoute
+						.lookup(Constants.bindNamePeer);
+				Registry tempObj_searchRoute1 = LocateRegistry.getRegistry(ip,
+						9898);
+				NodeInterface peerSearchRoute1 = (NodeInterface) tempObj_searchRoute1
+						.lookup(Constants.bindNamePeer);
+				peerSearchRoute1.printRouteSingle(temp.getPeerIP());
+				peerSearchRoute.searchRoute(hx, hy, searchName, ip);
+			} catch (Exception e) {
+				System.out.println("Expcetion" + e);
+				e.printStackTrace();
+			}
+		}
+	}	
+
+	/**
+	 * @param neigbhours
+	 * @param hx
+	 * @param hy
+	 * @return
+	 */
+	public static ServerInformation routeThrough1(ArrayList<ServerInformation> neigbhours,
+			double hx, double hy) {
+		double centreX = (neighbours.get(0).getLowerX() + neighbours.get(0).getUpperX()) / 2;
+		double centreY = (neighbours.get(0).getLowerY() + neighbours.get(0).getUpperY()) / 2;
+		double shortDist = Math.sqrt(Math.pow(centreX - hx, 2)
+				+ Math.pow(centreY - hy, 2));
+		ServerInformation temp = new ServerInformation();
+		for (int i = 0; i < neighbours.size(); i++) {
+			if (neigbhours.get(i).getLowerY() <= node.getLowerY()
+					|| neigbhours.get(i).getUpperY() >= node.getUpperY()) {
+				double centreX_temp = (neighbours.get(i).getLowerX() + neighbours.get(i).getUpperX()) / 2;
+				double centreY_temp = (neighbours.get(i).getLowerY() + neighbours.get(i).getUpperY()) / 2;
+				double dist = Math.sqrt(Math.pow(centreX_temp - hx, 2)
+						+ Math.pow(centreY_temp - hy, 2));
+				if (dist <= shortDist) {
+					shortDist = dist;
+					temp = neighbours.get(i);
+				}
+			}
+		}
+		return temp;
+	}
+
+	
+	/**
+	 * Server exits the network. Its zone is given to another server
+	 * along with the files. Update the server info again
 	 * 
 	 * @throws RemoteException
 	 * @throws Exception
@@ -498,17 +677,19 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 	private static void leave() throws RemoteException, Exception {
 		// if two peers in network
 		if (neighbours.size() == 1) {
-			String n_ip = neighbours.get(0).peerIP;
-			Registry leaveObj = LocateRegistry.getRegistry(n_ip, 9898);
-			NodeInterface leavePI = (NodeInterface) leaveObj.lookup("peer");
+			String n_ip = neighbours.get(0).getPeerIP();
+			Registry leaveObj = LocateRegistry.getRegistry(n_ip, Constants.portNumber);
+			NodeInterface leavePI = (NodeInterface) leaveObj.lookup(Constants.bindNamePeer);
 			leavePI.setLX(0);
 			leavePI.setLY(0);
 			leavePI.setUX(10);
 			leavePI.setUY(10);
 			leavePI.removeNiebhor(neighbours.get(0));
 
+			@SuppressWarnings("rawtypes")
 			Iterator it = allFile.entrySet().iterator();
 			while (it.hasNext()) {
+				@SuppressWarnings("rawtypes")
 				HashMap.Entry pair = (HashMap.Entry) it.next();
 				File temps1 = (File) pair.getKey();
 				leavePI.addFile(temps1, (byte[]) pair.getValue());
@@ -526,10 +707,10 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 					double centreX = node.getUpperX() + node.getLowerX() / 2;
 					double centreY = node.getUpperY() + node.getLowerY() / 2;
 					ServerInformation t = routeThrough1(neighbours, centreX, centreY);
-					Registry leaveObj1 = LocateRegistry.getRegistry(t.peerIP,
-							9898);
+					Registry leaveObj1 = LocateRegistry.getRegistry(t.getPeerIP(),
+							Constants.portNumber);
 					NodeInterface leavePI1 = (NodeInterface) leaveObj1
-							.lookup("peer");
+							.lookup(Constants.bindNamePeer);
 					ServerInformation tempOr = leavePI1.getNodeInfo();
 					if (node.getLowerY() > tempOr.getLowerY()) {
 						leavePI1.setUY(node.getUpperY());
@@ -540,8 +721,10 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 					}
 					// files
 					tempOr = leavePI1.getNodeInfo();
+					@SuppressWarnings("rawtypes")
 					Iterator it = allFile.entrySet().iterator();
 					while (it.hasNext()) {
+						@SuppressWarnings("rawtypes")
 						HashMap.Entry pair = (HashMap.Entry) it.next();
 						File temps1 = (File) pair.getKey();
 						leavePI1.addFile(temps1, (byte[]) pair.getValue());
@@ -556,16 +739,16 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 					for (int i = 0; i < tempList.size(); i++) {
 						ServerInformation x = tempList.get(i);
 						Registry leaveObj2 = LocateRegistry.getRegistry(
-								x.peerIP, 9898);
+								x.getPeerIP(), Constants.portNumber);
 						NodeInterface leavePI2 = (NodeInterface) leaveObj2
-								.lookup("peer");
+								.lookup(Constants.bindNamePeer);
 						ArrayList<ServerInformation> tempList1 = leavePI2.getNeibhor();
 						for (int j = 0; j < tempList1.size(); j++) {
 							ServerInformation x1 = tempList1.get(j);
-							if (tempList1.get(j).peerIP.equals(node.peerIP)) {
+							if (tempList1.get(j).getPeerIP().equals(node.getPeerIP())) {
 								leavePI2.removeNiebhor(x1);
 							}
-							if (tempList1.get(j).peerIP.equals(tempOr.peerIP)) {
+							if (tempList1.get(j).getPeerIP().equals(tempOr.getPeerIP())) {
 								leavePI2.removeNiebhor(x1);
 								leavePI2.addNieghbor(tempOr);
 							}
@@ -578,10 +761,10 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 					//System.out.println("RECTANGLE");
 					ServerInformation n1 = neighbours.get(0);
 					ServerInformation n2 = neighbours.get(1);
-					Registry o1 = LocateRegistry.getRegistry(n1.peerIP, 9898);
-					NodeInterface p1 = (NodeInterface) o1.lookup("peer");
-					Registry o2 = LocateRegistry.getRegistry(n2.peerIP, 9898);
-					NodeInterface p2 = (NodeInterface) o2.lookup("peer");
+					Registry o1 = LocateRegistry.getRegistry(n1.getPeerIP(), Constants.portNumber);
+					NodeInterface p1 = (NodeInterface) o1.lookup(Constants.bindNamePeer);
+					Registry o2 = LocateRegistry.getRegistry(n2.getPeerIP(), Constants.portNumber);
+					NodeInterface p2 = (NodeInterface) o2.lookup(Constants.bindNamePeer);
 					ServerInformation x1 = p1.getNodeInfo();
 					ServerInformation x2 = p2.getNodeInfo();
 					if (node.getUpperY() == x1.getUpperY()) {
@@ -648,15 +831,15 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 		String IP = sc5.nextLine();
 
 		try {
-			Registry printObj = LocateRegistry.getRegistry(IP, 9898);
-			NodeInterface printPI = (NodeInterface) printObj.lookup("peer");
+			Registry printObj = LocateRegistry.getRegistry(IP, Constants.portNumber);
+			NodeInterface printPI = (NodeInterface) printObj.lookup(Constants.bindNamePeer);
 			ServerInformation t = printPI.getNodeInfo();
 			System.out
-					.println("\nPeer IP:" + t.peerIP + " LowerX:" + t.getLowerX()
+					.println("\nPeer IP:" + t.getPeerIP() + " LowerX:" + t.getLowerX()
 							+ " LowerY:" + t.getLowerY() + " UpperX:" + t.getUpperX()
 							+ " UpperY:" + t.getUpperY());
-			print2(printPI.getNeibhor(), t.peerIP);
-			printFiles(printPI.getFileList(), t.peerIP);
+			print2(printPI.getNeibhor(), t.getPeerIP());
+			printFiles(printPI.getFileList(), t.getPeerIP());
 
 		} catch (Exception e) {
 			System.out.println("Exception e " + e);
@@ -732,7 +915,7 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 		System.out.println("Peer IP \t lx \t ly \t ux \t uy");
 		for (int i = 0; i < list.size(); i++) {
 			ServerInformation tmp = list.get(i);
-			System.out.println(tmp.peerIP + "\t" + tmp.getLowerX() + "\t" + tmp.getLowerY()
+			System.out.println(tmp.getPeerIP() + "\t" + tmp.getLowerX() + "\t" + tmp.getLowerY()
 					+ "\t" + tmp.getUpperX() + "\t" + tmp.getUpperY());
 		}
 		System.out.println();
@@ -792,7 +975,7 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 	@Override
 	public void removeNiebhor(ServerInformation _n) throws RemoteException {
 		for (int i = 0; i < neighbours.size(); i++) {
-			if (neighbours.get(i).peerIP.equals(_n.peerIP))
+			if (neighbours.get(i).getPeerIP().equals(_n.getPeerIP()))
 				neighbours.remove(neighbours.get(i));
 		}
 	}
@@ -851,179 +1034,7 @@ public class NodeInstance extends UnicastRemoteObject implements Serializable,
 	public void updateNode(ServerInformation _n) throws RemoteException {
 		node = _n;
 	}
-
-	/**
-	 * @throws IOException
-	 */
-	public static void insertFile() throws IOException {
-
-		System.out.println("Enter the file name");
-		Scanner sc1 = new Scanner(System.in);
-		String fileName = sc1.nextLine();
-		File file = new File(fileName);
-		byte buffer[] = new byte[(int) file.length()];
-		FileInputStream in = new FileInputStream(file);
-		in.read(buffer);
-		in.close();
-		double hash_x = getHashX(file);
-		double hash_y = getHashY(file);
-
-		if (node.getLowerX() <= hash_x && node.getUpperX() >= hash_x && node.getLowerY() <= hash_y
-				&& node.getUpperY() >= hash_y) {
-			System.out.println("\nFile inserted in SAME Peer: " + node.peerIP);
-			allFile.put(file, buffer);
-		} else {
-			ServerInformation temp = routeThrough(neighbours, hash_x, hash_y);
-			try {
-				Registry tempObj_insert = LocateRegistry.getRegistry(
-						temp.getPeerIP(), Constants.portNumber);
-				NodeInterface peerInsert = (NodeInterface) tempObj_insert
-						.lookup(Constants.bindNamePeer);
-				System.out.println("Route from Peer to Destination: \n"
-						+ node.getPeerIP() + "\n" + temp.getPeerIP());
-				peerInsert.insertRoute(hash_x, hash_y, file, buffer,
-						node.getPeerIP());
-			} catch (Exception e) {
-				System.out.println("Expcetion" + e);
-				e.printStackTrace();
-			}
-		}
-
-	}
-
-	/**
-	 * 
-	 */
-	private static void searchFile() {
-		Scanner sc2 = new Scanner(System.in);
-		System.out.println("Enter File to search:");
-		String searchFile = sc2.nextLine();
-		File fileSearch = new File(searchFile);
-		double hash_x = getHashX(searchFile);
-		double hash_y = getHashY(searchFile);
-
-		if (node.getLowerX() <= hash_x && node.getUpperX() >= hash_x && node.getLowerY() <= hash_y
-				&& node.getUpperY() >= hash_y) {
-			if (allFile.containsKey(fileSearch)) {
-				System.out.println("\nFile found in SAME Peer: " + node.peerIP);
-				System.out.println("File " + searchFile + " found.");
-			} else {
-				System.out.println("\nFile not found");
-			}
-		} else {
-			ServerInformation temp = routeThrough(neighbours, hash_x, hash_y);
-			try {
-				Registry tempObj_search = LocateRegistry.getRegistry(
-						temp.peerIP, 9898);
-				NodeInterface peerSearch = (NodeInterface) tempObj_search
-						.lookup("peer");
-				System.out.println("Route from Peer to Destination: \n"
-						+ node.peerIP + "\n" + temp.peerIP);
-				peerSearch.searchRoute(hash_x, hash_y, fileSearch, node.peerIP);
-			} catch (Exception e) {
-				System.out.println("Expcetion" + e);
-				e.printStackTrace();
-			}
-		}
-
-	}
-
-	/* (non-Javadoc)
-	 * @see PeerInterface#insertRoute(double, double, java.io.File, byte[], java.lang.String)
-	 */
-	@Override
-	public void insertRoute(double hx, double hy, File fileName, byte buffer[],
-			String ip) throws RemoteException {
-
-		if (node.getLowerX() <= hx && node.getUpperX() >= hx && node.getLowerY() <= hy && node.getUpperY() >= hy) {
-			allFile.put(fileName, buffer);
-			// allFiles.add(fileName);
-		} else {
-			ServerInformation temp = routeThrough(neighbours, hx, hy);
-			try {
-				Registry tempObj_insertRoute = LocateRegistry.getRegistry(
-						temp.peerIP, 9898);
-				NodeInterface peerInsertRoute = (NodeInterface) tempObj_insertRoute
-						.lookup("peer");
-				peerInsertRoute.printRouteSingle(temp.peerIP);
-				peerInsertRoute.insertRoute(hx, hy, fileName, buffer, ip);
-			} catch (Exception e) {
-				System.out.println("Expcetion" + e);
-				e.printStackTrace();
-			}
-		}
-
-	}
-
-	/* (non-Javadoc)
-	 * @see PeerInterface#searchRoute(double, double, java.io.File, java.lang.String)
-	 */
-	@Override
-	public void searchRoute(double hx, double hy, File searchName, String ip)
-			throws RemoteException {
-
-		if (node.getLowerX() <= hx && node.getUpperX() >= hx && node.getLowerY() <= hy && node.getUpperY() >= hy) {
-			try {
-				Registry finalReg = LocateRegistry.getRegistry(ip, 9898);
-				NodeInterface finalPI = (NodeInterface) finalReg.lookup("peer");
-				if (allFile.containsKey(searchName)) {
-					finalPI.printRoute(searchName, ip);
-				} else {
-					finalPI.printRouteNot(searchName, ip);
-				}
-			} catch (NotBoundException e) {
-				e.printStackTrace();
-			}
-
-		} else {
-			ServerInformation temp = routeThrough(neighbours, hx, hy);
-			try {
-				Registry tempObj_searchRoute = LocateRegistry.getRegistry(
-						temp.peerIP, 9898);
-				NodeInterface peerSearchRoute = (NodeInterface) tempObj_searchRoute
-						.lookup("peer");
-				Registry tempObj_searchRoute1 = LocateRegistry.getRegistry(ip,
-						9898);
-				NodeInterface peerSearchRoute1 = (NodeInterface) tempObj_searchRoute1
-						.lookup("peer");
-				peerSearchRoute1.printRouteSingle(temp.peerIP);
-				peerSearchRoute.searchRoute(hx, hy, searchName, ip);
-			} catch (Exception e) {
-				System.out.println("Expcetion" + e);
-				e.printStackTrace();
-			}
-		}
-	}	
-
-	/**
-	 * @param neigbhours
-	 * @param hx
-	 * @param hy
-	 * @return
-	 */
-	public static ServerInformation routeThrough1(ArrayList<ServerInformation> neigbhours,
-			double hx, double hy) {
-		double centreX = (neighbours.get(0).getLowerX() + neighbours.get(0).getUpperX()) / 2;
-		double centreY = (neighbours.get(0).getLowerY() + neighbours.get(0).getUpperY()) / 2;
-		double shortDist = Math.sqrt(Math.pow(centreX - hx, 2)
-				+ Math.pow(centreY - hy, 2));
-		ServerInformation temp = new ServerInformation();
-		for (int i = 0; i < neighbours.size(); i++) {
-			if (neigbhours.get(i).getLowerY() <= node.getLowerY()
-					|| neigbhours.get(i).getUpperY() >= node.getUpperY()) {
-				double centreX_temp = (neighbours.get(i).getLowerX() + neighbours.get(i).getUpperX()) / 2;
-				double centreY_temp = (neighbours.get(i).getLowerY() + neighbours.get(i).getUpperY()) / 2;
-				double dist = Math.sqrt(Math.pow(centreX_temp - hx, 2)
-						+ Math.pow(centreY_temp - hy, 2));
-				if (dist <= shortDist) {
-					shortDist = dist;
-					temp = neighbours.get(i);
-				}
-			}
-		}
-		return temp;
-	}
-
+	
 	/* (non-Javadoc)
 	 * @see PeerInterface#printRouteSingle(java.lang.String)
 	 */
