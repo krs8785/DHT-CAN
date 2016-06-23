@@ -6,14 +6,14 @@ import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import com.CAN.nodeInfo.NodeInfo;
+import com.CAN.nodeInfo.ServerInformation;
 
 
 /**
  * @author karan
  *
  */
-public interface PeerInterface extends Remote {
+public interface NodeInterface extends Remote {
 
 	/**
 	 * @param x
@@ -27,25 +27,25 @@ public interface PeerInterface extends Remote {
 	 * @return
 	 * @throws RemoteException
 	 */
-	NodeInfo getNodeInfo() throws RemoteException;
+	ServerInformation getNodeInfo() throws RemoteException;
 
 	/**
 	 * @param _n
 	 * @throws RemoteException
 	 */
-	void addNieghbor(NodeInfo _n) throws RemoteException;
+	void addNieghbor(ServerInformation _n) throws RemoteException;
 
 	/**
 	 * @return
 	 * @throws RemoteException
 	 */
-	ArrayList<NodeInfo> getNeibhor() throws RemoteException;
+	ArrayList<ServerInformation> getNeibhor() throws RemoteException;
 
 	/**
 	 * @param _n
 	 * @throws RemoteException
 	 */
-	void removeNiebhor(NodeInfo _n) throws RemoteException;
+	void removeNiebhor(ServerInformation _n) throws RemoteException;
 
 	/**
 	 * @param _lx
@@ -75,7 +75,7 @@ public interface PeerInterface extends Remote {
 	 * @param _n
 	 * @throws RemoteException
 	 */
-	void updateNode(NodeInfo _n) throws RemoteException;
+	void updateNode(ServerInformation _n) throws RemoteException;
 
 	/**
 	 * @param hx
@@ -135,7 +135,7 @@ public interface PeerInterface extends Remote {
 	 * @param list
 	 * @throws RemoteException
 	 */
-	void setNeighbor(ArrayList<NodeInfo> list) throws RemoteException;
+	void setNeighbor(ArrayList<ServerInformation> list) throws RemoteException;
 	
 	/**
 	 * @param list
