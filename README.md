@@ -20,20 +20,15 @@ The project structure consists of a bootstrap server which is the entry point fo
 name, and that this resolves to the IP address of one or more CAN bootstrap server. To join a CAN, a new server looks up the CAN domain name in DNS to retrieve a bootstrap node’s IP address. The bootstrap server then supplies the IP addresses of several randomly chosen server currently in the system. The server can then perform lookup and other functions
 
 <b> Functionality </b>
- 
   
+1. JOIN: A request is sent to the bootstrap from a joining node. The bootstrap randomly chooses a node already in the CAN and routes this request to this node. This node then randomly chooses co-ordinates within the CAN. If these co-ordinates lie within this node itself, the node splits and transmits necessary state information to the joining node. Otherwise, all the neighbours are checked to find the closest one to the destination co-ordinates. The information is relayed to this peer and thus the relaying continues till the appropriate zone is discovered.
 
-Step 1
+2. INSERT: Hash of the key is calculated and co-ordinates are determined. If the co-ordinates lie in the requesting zone itself, the key is inserted in the hashtable. Otherwise, routing to the destination co-ordinates happens the same way as in join.
 
-Run the routingServer ie BootStrapServer.java on your server. It will print the IP address of that machine.
-It is important to set up bootstrap server which will connect all the new servers together. A new server typically has an associated DNS domain name, and that this resolves to the IP address of one or more server bootstrap nodes. 
-I have made small tweaking here. Instead of servers maintaining the IP address we are required to provide the bootstrapServer IP to it.
+3. SEARCH: Hash of the key is calculated and co-ordinates are determined. If the co-ordinates lie in the requesting zone itself, the key is looked up in the hashtable. Otherwise, routing to the destination co-ordinates happens the same way as in join. If the key is found the route to the destination node from the source node is displayed.
 
-Step 2
+4. VIEW: If a peer node id is provided as a parameter the ip address of the node is obtained from the bootstrap. If not provided, the ip addresses of all the active nodes are obtained from the bootstrap. Each of the peers is then requested for its data by the requesting peer and the data is accordingly painted on the standard output.
 
-You can start adding new server by running Peer.java on different machines.
-Enter the IP address of the routingServer
+5. LEAVE: Implemented but some issues still persist. Will fix these later. The expected behaviour is that the requesting node should exit the CAN and the boundaries of the neighbours are appropriately adjusted and the keys of this leaving node get assigned to the smaller neighbouring zone to keep the distribution of the keys fairly even.
 
-Run a few of servers and perform the different distributed functionality. I have a few text files that you can upload by giving the correct path. 
-Inserting the file will show the route (along with the final destination) where the file is going to be stored.
 
