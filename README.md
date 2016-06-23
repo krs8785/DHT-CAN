@@ -3,8 +3,10 @@ Source - http://conferences.sigcomm.org/sigcomm/2001/p13-ratnasamy.pdf
 
 If you already know the concept of CAN you can directly run the project and skip the high level description below
 
-1. Run the bootstrap server 
-2. Run few servers and start inserting/searching files
+1. Run the bootstrap server (/routingServer)
+   Keep a note of the IP address of the server.
+2. Run few servers and start inserting/searching files (/NodeServer)
+   Enter the IP address of the bootstrap to get connected. 
 
 <b> Distributed Hash Table </b>
 
