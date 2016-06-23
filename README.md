@@ -1,5 +1,11 @@
 Source - http://conferences.sigcomm.org/sigcomm/2001/p13-ratnasamy.pdf
 
+
+If you already know the concept of CAN you can directly run the project and skip the high level description below
+
+1. Run the bootstrap server 
+2. Run few servers and start inserting/searching files
+
 <b> Distributed Hash Table </b>
 
 A DHT is a distrbuted system that enables efficient lookup for a file very much similar to a hashtable (key,value) in a peer to peer network. The server within the system can retrieve value associated with the key. Content Addressable Network is peer to peer file sharing and content distributed system. The CAN is scalable, fault-tolerant and completely self-organizing,
