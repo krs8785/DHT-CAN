@@ -14,6 +14,14 @@ Java
   <img src="https://github.com/krs8785/DistributedHashTable_ContentAddressableNetwork/upload/master/src/com/CAN/testFiles/abc.png" width="350"/>
 </p>
 
+As you can see in the above image the CAN is a N dimensional space which is shared by the different servers. In this project we cnsider a 2 dimensional space with a dimension of 10x10. The new joining server first contacts the bootstrap server which is responsible to route the server to its appropriate position. To allow the CAN to grow incrementally, a new server that joins the system must be allocated its own portion of the coordinate space. This is done by an existing server splitting its allocated zone in half, retaining half and handing the other half to the new server. Once the server is part of the network it can insert or lookup for files.
+
+The project structure consists of a bootstrap server which is the entry point for all the server. CAN has an associated DNS domain
+name, and that this resolves to the IP address of one or more CAN bootstrap server. To join a CAN, a new server looks up the CAN domain name in DNS to retrieve a bootstrap node’s IP address. The bootstrap server then supplies the IP addresses of several randomly chosen server currently in the system. The server can then perform lookup and other functions
+
+<b> Functionality </b>
+ 
+  
 
 Step 1
 
