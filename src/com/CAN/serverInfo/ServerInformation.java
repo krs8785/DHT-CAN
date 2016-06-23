@@ -1,4 +1,4 @@
-package com.CAN.nodeInfo;
+package com.CAN.serverInfo;
 import java.io.Serializable;
 
 /**

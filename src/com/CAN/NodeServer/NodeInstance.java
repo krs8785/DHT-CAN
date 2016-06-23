@@ -1,4 +1,4 @@
-package com.CAN.peerServer;
+package com.CAN.NodeServer;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -15,9 +15,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Scanner;
 
-import com.CAN.peerServer.peerServerInterface.NodeInterface;
-import com.CAN.nodeInfo.ServerInformation;
+import com.CAN.NodeServer.NodeServerInterface.NodeInterface;
 import com.CAN.routingServer.routingServerInterface.BootStrapInterface;
+import com.CAN.serverInfo.ServerInformation;
 
 /**
  * The Node class is the main server class which consists of all the different functionality 
